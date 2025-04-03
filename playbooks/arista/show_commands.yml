@@ -1,0 +1,49 @@
+---
+- name: Run show commands on Arista devices
+  hosts: "{{ target | default('all') }}"
+  gather_facts: false
+  
+  vars:
+    commands: []
+    timeout: 30
+    ssh_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+    save_output: true
+    output_dir: "./command_outputs"
+    
+  tasks:
+    - name: Check if commands are provided
+      ansible.builtin.fail:
+        msg: "No commands provided. Please specify commands using -e 'commands=[\"show version\", \"show ip interface brief\"]'"
+      when: commands | length == 0
+
+    - name: Ensure output directory exists
+      ansible.builtin.file:
+        path: "{{ output_dir }}"
+        state: directory
+        mode: '0755'
+      delegate_to: localhost
+      when: save_output | bool
+      
+    - name: Run commands on Arista devices
+      arista.eos.eos_command:
+        commands: "{{ commands }}"
+        wait_for: result[0] contains EOS
+        match: any
+      register: command_output
+      vars:
+        ansible_connection: network_cli
+        ansible_network_os: arista.eos.eos
+        ansible_ssh_common_args: "{{ ssh_args }}"
+        ansible_command_timeout: "{{ timeout }}"
+        
+    - name: Display command output
+      ansible.builtin.debug:
+        var: command_output.stdout_lines
+        
+    - name: Save command output to file
+      ansible.builtin.copy:
+        content: "{{ command_output | to_nice_yaml }}"
+        dest: "{{ output_dir }}/{{ inventory_hostname }}_commands_{{ ansible_date_time.iso8601_basic_short }}.yml"
+      delegate_to: localhost
+      when: save_output | bool
+...
