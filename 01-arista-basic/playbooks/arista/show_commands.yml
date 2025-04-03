@@ -4,8 +4,9 @@
   gather_facts: false
   
   vars:
-    timeout: 30
-    ssh_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+    command_timeout: 120  # Increased timeout to 2 minutes
+    connection_timeout: 60  # Connection timeout in seconds
+    ssh_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o ConnectTimeout=60'
     save_output: true
     output_dir: "./command_outputs"
     
@@ -27,7 +28,9 @@
         ansible_connection: network_cli
         ansible_network_os: arista.eos.eos
         ansible_ssh_common_args: "{{ ssh_args }}"
-        ansible_command_timeout: "{{ timeout }}"
+        ansible_command_timeout: "{{ command_timeout }}"
+        ansible_connect_timeout: "{{ connection_timeout }}"
+        ansible_persistent_connect_timeout: "{{ connection_timeout }}"
         
     - name: Display command output
       ansible.builtin.debug:
