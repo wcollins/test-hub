@@ -1,9 +1,0 @@
-# Python requirements for Arista automation
-paramiko>=2.11.0      # SSH library for network devices
-netmiko>=4.1.0        # Multi-vendor library to simplify Paramiko SSH connections
-requests>=2.28.1      # HTTP library for API interactions
-PyYAML>=6.0           # YAML parser for configuration files
-jinja2>=3.1.2         # Templating engine for configuration generation
-ncclient>=0.6.13      # NETCONF client library (if using NETCONF)
-jsonschema>=4.17.3    # JSON Schema validation
-pyeapi>=0.8.4         # Python client for Arista eAPI
