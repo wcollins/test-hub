@@ -12,7 +12,7 @@ services:
     - name: show-arista
       type: ansible-playbook
       description: Ansible hello world
-      working-directory: test-hub
+      working-directory: ./
       inventory:
         - ./inventory/arista.yml
       playbooks:
