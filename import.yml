@@ -1,0 +1,23 @@
+---
+repositories:
+    - name: test-hub
+      description: Get started with torero
+      url: https://github.com/wcollins/test-hub.git
+      reference: main
+      tags:
+        - demo
+        - torero
+
+services:
+    - name: show-arista
+      type: ansible-playbook
+      description: Ansible hello world
+      working-directory: test-hub
+      inventory:
+        - ./inventory/arista.yml
+      playbooks:
+        - ./playbooks/arista/show-commands.yml
+      repository: test-hub
+      tags:
+        - demo
+        - ansible
