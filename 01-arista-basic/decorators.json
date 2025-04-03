@@ -1,0 +1,15 @@
+{
+	"$id": "root",
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"type": "object",
+	"properties": {
+	  "commands_file": {
+	    "type": "string",
+	    "description": "Commands in File"
+	  }
+	},
+	"required": [
+	  "commands_file"
+	],
+	"additionalProperties": false
+}
