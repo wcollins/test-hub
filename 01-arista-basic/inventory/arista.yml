@@ -6,6 +6,8 @@ all:
       vars:
         ansible_user: admin
         ansible_password: admin
+        ansible_connection: network_cli
+        ansible_network_os: eos
       hosts:
         clab-ceos-ceos:
           ansible_host: 1.1.1.6
