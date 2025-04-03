@@ -16,7 +16,7 @@ services:
       inventory:
         - ./inventory/arista.yml
       playbooks:
-        - ./playbooks/arista/show-commands.yml
+        - ./playbooks/arista/show_commands.yml
       repository: test-hub
       tags:
         - demo
