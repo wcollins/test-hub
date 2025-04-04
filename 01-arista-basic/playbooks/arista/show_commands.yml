@@ -4,31 +4,10 @@
   gather_facts: false
   
   vars:
-    command_timeout: 120
-    connection_timeout: 60
-    save_output: true
-    output_dir: "./command_outputs"
-    html_dir: "./html_reports"
+    timeout: 30
     
   tasks:
-    - name: Ensure output directories exist
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: directory
-        mode: '0755'
-      delegate_to: localhost
-      loop:
-        - "{{ output_dir }}"
-        - "{{ html_dir }}"
-      when: save_output | bool
-      
-    - name: Get current timestamp
-      ansible.builtin.command: date +%Y%m%d_%H%M%S
-      register: timestamp
-      delegate_to: localhost
-      changed_when: false
-      
-    - name: Run 'show running-config' command with enable mode
+    - name: Run show running-config on Arista devices
       arista.eos.eos_command:
         commands: 
           - show running-config
@@ -37,34 +16,11 @@
         ansible_connection: network_cli
         ansible_network_os: arista.eos.eos
         ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
-        ansible_command_timeout: "{{ command_timeout }}"
-        ansible_connect_timeout: "{{ connection_timeout }}"
         ansible_host_key_checking: false
         ansible_become: true
         ansible_become_method: enable
         
-    - name: Save raw command output to file
-      ansible.builtin.copy:
-        content: "{{ command_output.stdout[0] }}"
-        dest: "{{ output_dir }}/{{ inventory_hostname }}_running_config_{{ timestamp.stdout }}.txt"
-      delegate_to: localhost
-      when: save_output | bool
-      
-    - name: Parse configuration into sections
-      ansible.builtin.set_fact:
-        config_sections:
-          hostname: "{{ command_output.stdout[0] | regex_search('hostname ([^\\n]+)', '\\1') | first }}"
-          interfaces: "{{ command_output.stdout[0] | regex_findall('(?s)interface ([^!]+)!') }}"
-          vlans: "{{ command_output.stdout[0] | regex_findall('(?s)vlan ([^!]+)!') }}"
-          routing: "{{ command_output.stdout[0] | regex_findall('(?s)(ip routing[^!]+)!') }}"
-          bgp: "{{ command_output.stdout[0] | regex_findall('(?s)(router bgp [^!]+)!') }}"
-          management: "{{ command_output.stdout[0] | regex_findall('(?s)(management api [^!]+)!') }}"
-          ntp: "{{ command_output.stdout[0] | regex_findall('(?s)(ntp [^!]+)!') }}"
-          aaa: "{{ command_output.stdout[0] | regex_findall('(?s)(aaa [^!]+)!') }}"
-      
-    - name: Create HTML visualization
-      ansible.builtin.template:
-        src: config_visualization.html.j2
-        dest: "{{ html_dir }}/{{ inventory_hostname }}_config_{{ timestamp.stdout }}.html"
-      delegate_to: localhost
-      when: save_output | bool
+    - name: Display running configuration
+      ansible.builtin.debug:
+        var: command_output.stdout_lines
+...
