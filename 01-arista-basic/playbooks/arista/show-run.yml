@@ -6,7 +6,7 @@
   vars:
     config_type: "running"  # Can be 'running' or 'startup'
     save_output: true
-    output_dir: "./configs"
+    output_dir: "{{ lookup('env', 'HOME') }}/arista_configs"  # Absolute path based on user's home directory
     ssh_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
     
   tasks:
@@ -18,19 +18,27 @@
       delegate_to: localhost
       when: save_output | bool
       
-    - name: Get device configuration
-      arista.eos.eos_config:
-        backup: yes
-        backup_options:
-          dir_path: "{{ output_dir }}"
-          filename: "{{ inventory_hostname }}_{{ config_type }}_{{ ansible_date_time.iso8601_basic_short }}.cfg"
+    - name: Run show running-config | no-header command
+      arista.eos.eos_command:
+        commands:
+          - show running-config | no-header
+      register: command_output
       vars:
         ansible_connection: network_cli
         ansible_network_os: arista.eos.eos
         ansible_ssh_common_args: "{{ ssh_args }}"
+        ansible_host_key_checking: false
+        ansible_become: true
+        ansible_become_method: enable
+        
+    - name: Save configuration to file with timestamp
+      ansible.builtin.copy:
+        content: "{{ command_output.stdout[0] }}"
+        dest: "{{ output_dir }}/{{ inventory_hostname }}_{{ config_type }}_{{ ansible_date_time.iso8601_basic_short }}.txt"
+      delegate_to: localhost
+      when: save_output | bool
         
     - name: Display backup location
       ansible.builtin.debug:
-        msg: "Configuration saved to {{ output_dir }}/{{ inventory_hostname }}_{{ config_type }}_{{ ansible_date_time.iso8601_basic_short }}.cfg"
+        msg: "Configuration saved to {{ output_dir }}/{{ inventory_hostname }}_{{ config_type }}_{{ ansible_date_time.iso8601_basic_short }}.txt"
       when: save_output | bool
-...

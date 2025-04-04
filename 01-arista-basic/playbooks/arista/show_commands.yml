@@ -5,12 +5,24 @@
   
   vars:
     timeout: 30
+    output_dir: "{{ lookup('env', 'HOME') }}/arista_configs/command_outputs"  # Absolute path based on user's home directory
+    html_output_dir: "{{ lookup('env', 'HOME') }}/arista_configs/html_reports"  # Absolute path for HTML reports
     
   tasks:
-    - name: Run show running-config on Arista devices
+    - name: Ensure output directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      delegate_to: localhost
+      loop:
+        - "{{ output_dir }}"
+        - "{{ html_output_dir }}"
+        
+    - name: Run show running-config | no-header on Arista devices
       arista.eos.eos_command:
         commands: 
-          - show running-config
+          - show running-config | no-header
       register: command_output
       vars:
         ansible_connection: network_cli
@@ -20,7 +32,12 @@
         ansible_become: true
         ansible_become_method: enable
         
-    - name: Display running configuration
+    - name: Save command output to file
+      ansible.builtin.copy:
+        content: "{{ command_output.stdout[0] }}"
+        dest: "{{ output_dir }}/{{ inventory_hostname }}_running_config_{{ ansible_date_time.iso8601_basic_short }}.txt"
+      delegate_to: localhost
+      
+    - name: Display output file location
       ansible.builtin.debug:
-        var: command_output.stdout_lines
-...
+        msg: "Output saved to {{ output_dir }}/{{ inventory_hostname }}_running_config_{{ ansible_date_time.iso8601_basic_short }}.txt"
