@@ -7,10 +7,13 @@
     config_dir: "{{ lookup('env', 'HOME') }}/arista_configs"
     raw_configs_dir: "{{ config_dir }}/raw_configs"
     html_reports_dir: "{{ config_dir }}/html_reports"
-    ssh_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
-    timestamp: "{{ ansible_date_time.iso8601_basic_short }}"
+    ssh_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
     
   tasks:
+    - name: Create timestamp for files
+      ansible.builtin.set_fact:
+        file_timestamp: "{{ lookup('pipe', 'date +%Y%m%d_%H%M%S') }}"
+      
     - name: Ensure directories exist
       ansible.builtin.file:
         path: "{{ item }}"
@@ -22,30 +25,48 @@
         - "{{ raw_configs_dir }}"
         - "{{ html_reports_dir }}"
         
-    - name: Get current date and time
+    - name: Get current date and time for display
       ansible.builtin.command: date
-      register: timestamp
+      register: datetime_display
       delegate_to: localhost
       changed_when: false
       
-    - name: Run show running-config | no-header command
+    # Use the network_cli connection plugin to run 'show running-config | exclude !'
+    # This will get just the raw configuration without headers and footers
+    - name: Run show running-config command without headers
       arista.eos.eos_command:
         commands:
-          - show running-config | no-header
+          - "configure session test"
+          - "show session-config"
+          - "abort"
       register: running_config
       vars:
         ansible_connection: network_cli
         ansible_network_os: arista.eos.eos
-        ansible_ssh_common_args: "{{ ssh_args }}"
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
         ansible_host_key_checking: false
         ansible_become: true
         ansible_become_method: enable
         
     - name: Save raw configuration
       ansible.builtin.copy:
-        content: "{{ running_config.stdout[0] }}"
-        dest: "{{ raw_configs_dir }}/{{ inventory_hostname }}_running_config_{{ timestamp }}.txt"
+        content: "{{ running_config.stdout[1] }}"
+        dest: "{{ raw_configs_dir }}/{{ inventory_hostname }}_running_config_{{ file_timestamp }}.txt"
       delegate_to: localhost
+      
+    # Get the full config for parsing sections in the HTML report
+    - name: Get full configuration for HTML report
+      arista.eos.eos_command:
+        commands:
+          - show running-config
+      register: full_config
+      vars:
+        ansible_connection: network_cli
+        ansible_network_os: arista.eos.eos
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+        ansible_host_key_checking: false
+        ansible_become: true
+        ansible_become_method: enable
       
     - name: Run additional show commands to extract configuration sections
       arista.eos.eos_command:
@@ -61,28 +82,33 @@
       vars:
         ansible_connection: network_cli
         ansible_network_os: arista.eos.eos
-        ansible_ssh_common_args: "{{ ssh_args }}"
+        ansible_ssh_common_args: "-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null"
+        ansible_host_key_checking: false
+        ansible_become: true
+        ansible_become_method: enable
         
     - name: Parse configuration sections
       ansible.builtin.set_fact:
         config_sections:
           hostname: "{{ show_outputs.stdout[0] | default('Unknown') }}"
-          vlans: "{{ running_config.stdout[0] | regex_findall('vlan \\d+') }}"
-          interfaces: "{{ running_config.stdout[0] | regex_findall('(?ms)interface [\\w\\d\\/]+.*?(?=!|$)') }}"
-          routing: "{{ running_config.stdout[0] | regex_findall('(?ms)ip route.*?(?=!|$)') }}"
-          bgp: "{{ running_config.stdout[0] | regex_findall('(?ms)router bgp.*?(?=!\\s*router|$)') }}"
-          management: "{{ running_config.stdout[0] | regex_findall('(?ms)management.*?(?=!|$)') }}"
-          ntp: "{{ running_config.stdout[0] | regex_findall('(?ms)ntp.*?(?=!|$)') }}"
-          aaa: "{{ running_config.stdout[0] | regex_findall('(?ms)aaa.*?(?=!|$)') }}"
+          vlans: "{{ full_config.stdout[0] | regex_findall('vlan \\d+') }}"
+          interfaces: "{{ full_config.stdout[0] | regex_findall('(?ms)interface [\\w\\d\\/]+.*?(?=!|$)') }}"
+          routing: "{{ full_config.stdout[0] | regex_findall('(?ms)ip route.*?(?=!|$)') }}"
+          bgp: "{{ full_config.stdout[0] | regex_findall('(?ms)router bgp.*?(?=!\\s*router|$)') }}"
+          management: "{{ full_config.stdout[0] | regex_findall('(?ms)management.*?(?=!|$)') }}"
+          ntp: "{{ full_config.stdout[0] | regex_findall('(?ms)ntp.*?(?=!|$)') }}"
+          aaa: "{{ full_config.stdout[0] | regex_findall('(?ms)aaa.*?(?=!|$)') }}"
       
     - name: Generate HTML visualization
       ansible.builtin.template:
         src: templates/config_visualization.html.j2
-        dest: "{{ html_reports_dir }}/{{ inventory_hostname }}_config_{{ timestamp }}.html"
+        dest: "{{ html_reports_dir }}/{{ inventory_hostname }}_config_{{ file_timestamp }}.html"
       delegate_to: localhost
+      vars:
+        timestamp: "{{ datetime_display }}"
       
     - name: Display output locations
       ansible.builtin.debug:
         msg: 
-          - "Raw configuration saved to {{ raw_configs_dir }}/{{ inventory_hostname }}_running_config_{{ timestamp }}.txt"
-          - "HTML report generated at {{ html_reports_dir }}/{{ inventory_hostname }}_config_{{ timestamp }}.html"
+          - "Raw configuration saved to {{ raw_configs_dir }}/{{ inventory_hostname }}_running_config_{{ file_timestamp }}.txt"
+          - "HTML report generated at {{ html_reports_dir }}/{{ inventory_hostname }}_config_{{ file_timestamp }}.html"

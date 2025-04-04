@@ -19,10 +19,10 @@
         - "{{ output_dir }}"
         - "{{ html_output_dir }}"
         
-    - name: Run show running-config | no-header on Arista devices
+    - name: Run show running-config on Arista devices
       arista.eos.eos_command:
         commands: 
-          - show running-config | no-header
+          - show running-config
       register: command_output
       vars:
         ansible_connection: network_cli
@@ -32,9 +32,18 @@
         ansible_become: true
         ansible_become_method: enable
         
+    - name: Process configuration to make it pastable
+      ansible.builtin.set_fact:
+        clean_config: "{{ command_output.stdout[0] | regex_replace('^.*?!\n', '!', multiline=True) | regex_replace('ceos#
+      
+    - name: Display output file location
+      ansible.builtin.debug:
+        msg: "Output saved to {{ output_dir }}/{{ inventory_hostname }}_running_config_{{ ansible_date_time.iso8601_basic_short }}.txt"
+, '') }}"
+      
     - name: Save command output to file
       ansible.builtin.copy:
-        content: "{{ command_output.stdout[0] }}"
+        content: "{{ clean_config }}"
         dest: "{{ output_dir }}/{{ inventory_hostname }}_running_config_{{ ansible_date_time.iso8601_basic_short }}.txt"
       delegate_to: localhost
       
