@@ -1,0 +1,89 @@
+---
+- name: Arista Configuration Management
+  hosts: "{{ target | default('all') }}"
+  gather_facts: false
+  
+  vars:
+    config_dir: "{{ lookup('env', 'HOME') }}/arista_configs"
+    raw_configs_dir: "{{ config_dir }}/raw_configs"
+    html_reports_dir: "{{ config_dir }}/html_reports"
+    
+  tasks:
+    - name: Create timestamp for files
+      ansible.builtin.set_fact:
+        file_timestamp: "{{ lookup('pipe', 'date +%Y%m%d_%H%M%S') }}"
+      
+    - name: Ensure directories exist
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      delegate_to: localhost
+      loop:
+        - "{{ config_dir }}"
+        - "{{ raw_configs_dir }}"
+        - "{{ html_reports_dir }}"
+        
+    - name: Get current date and time for display
+      ansible.builtin.command: date
+      register: datetime_display
+      delegate_to: localhost
+      changed_when: false
+      
+    - name: Run show running-config command without headers
+      arista.eos.eos_command:
+        commands:
+          - "configure session test"
+          - "show session-config"
+          - "abort"
+      register: running_config
+        
+    - name: Save raw configuration
+      ansible.builtin.copy:
+        content: "{{ running_config.stdout[1] }}"
+        dest: "{{ raw_configs_dir }}/{{ inventory_hostname }}_running_config_{{ file_timestamp }}.txt"
+      delegate_to: localhost
+      
+    - name: Get full configuration for HTML report
+      arista.eos.eos_command:
+        commands:
+          - show running-config
+      register: full_config
+      
+    - name: Run additional show commands to extract configuration sections
+      arista.eos.eos_command:
+        commands:
+          - show hostname
+          - show vlan
+          - show interfaces
+          - show ip route
+          - show ip bgp summary
+          - show ntp status
+          - show aaa
+      register: show_outputs
+        
+    - name: Parse configuration sections
+      ansible.builtin.set_fact:
+        config_sections:
+          hostname: "{{ show_outputs.stdout[0] | default('Unknown') }}"
+          vlans: "{{ full_config.stdout[0] | regex_findall('vlan \\d+') }}"
+          interfaces: "{{ full_config.stdout[0] | regex_findall('(?ms)interface [\\w\\d\\/]+.*?(?=!|$)') }}"
+          routing: "{{ full_config.stdout[0] | regex_findall('(?ms)ip route.*?(?=!|$)') }}"
+          bgp: "{{ full_config.stdout[0] | regex_findall('(?ms)router bgp.*?(?=!\\s*router|$)') }}"
+          management: "{{ full_config.stdout[0] | regex_findall('(?ms)management.*?(?=!|$)') }}"
+          ntp: "{{ full_config.stdout[0] | regex_findall('(?ms)ntp.*?(?=!|$)') }}"
+          aaa: "{{ full_config.stdout[0] | regex_findall('(?ms)aaa.*?(?=!|$)') }}"
+      
+    - name: Generate HTML visualization
+      ansible.builtin.template:
+        src: templates/config_visualization.html.j2
+        dest: "{{ html_reports_dir }}/{{ inventory_hostname }}_config_{{ file_timestamp }}.html"
+      delegate_to: localhost
+      vars:
+        timestamp: "{{ datetime_display }}"
+      
+    - name: Display output locations
+      ansible.builtin.debug:
+        msg: 
+          - "Raw configuration saved to {{ raw_configs_dir }}/{{ inventory_hostname }}_running_config_{{ file_timestamp }}.txt"
+          - "HTML report generated at {{ html_reports_dir }}/{{ inventory_hostname }}_config_{{ file_timestamp }}.html"
