@@ -1,0 +1,62 @@
+changed: false
+failed: false
+stdout:
+- "! Command: show running-config\n! device: ceos (cEOSLab, EOS-4.33.2F-40713977.4332F
+    (engineering build))\n!\nno aaa root\n!\nusername admin privilege 15 role network-admin
+    secret sha512 $6$LxVl3vvfnyV.Emub$lxnkTaGyaG/YqN5Qk.zaUAXEXlY22SWg952EHrCZ05dKUz18.xDpeZoo2iRVsALb0alnN9xzHqxH83kEqsVCg1\n!\nmanagement
+    api http-commands\n   no shutdown\n!\nno service interface inactive port-id allocation
+    disabled\n!\ntransceiver qsfp default-mode 4x10G\n!\nservice routing protocols
+    model multi-agent\n!\nhostname ceos\n!\nspanning-tree mode mstp\n!\nsystem l1\n
+    \  unsupported speed action error\n   unsupported error-correction action error\n!\nmanagement
+    api gnmi\n   transport grpc default\n!\nmanagement api netconf\n   transport ssh
+    default\n!\ninterface Ethernet1\n!\ninterface Management0\n   ip address 1.1.1.6/24\n!\nno
+    ip routing\n!\nip route 0.0.0.0/0 1.1.1.1\n!\nrouter multicast\n   ipv4\n      software-forwarding
+    kernel\n   !\n   ipv6\n      software-forwarding kernel\n!\nend"
+stdout_lines:
+-   - '! Command: show running-config'
+    - '! device: ceos (cEOSLab, EOS-4.33.2F-40713977.4332F (engineering build))'
+    - '!'
+    - no aaa root
+    - '!'
+    - username admin privilege 15 role network-admin secret sha512 $6$LxVl3vvfnyV.Emub$lxnkTaGyaG/YqN5Qk.zaUAXEXlY22SWg952EHrCZ05dKUz18.xDpeZoo2iRVsALb0alnN9xzHqxH83kEqsVCg1
+    - '!'
+    - management api http-commands
+    - '   no shutdown'
+    - '!'
+    - no service interface inactive port-id allocation disabled
+    - '!'
+    - transceiver qsfp default-mode 4x10G
+    - '!'
+    - service routing protocols model multi-agent
+    - '!'
+    - hostname ceos
+    - '!'
+    - spanning-tree mode mstp
+    - '!'
+    - system l1
+    - '   unsupported speed action error'
+    - '   unsupported error-correction action error'
+    - '!'
+    - management api gnmi
+    - '   transport grpc default'
+    - '!'
+    - management api netconf
+    - '   transport ssh default'
+    - '!'
+    - interface Ethernet1
+    - '!'
+    - interface Management0
+    - '   ip address 1.1.1.6/24'
+    - '!'
+    - no ip routing
+    - '!'
+    - ip route 0.0.0.0/0 1.1.1.1
+    - '!'
+    - router multicast
+    - '   ipv4'
+    - '      software-forwarding kernel'
+    - '   !'
+    - '   ipv6'
+    - '      software-forwarding kernel'
+    - '!'
+    - end
