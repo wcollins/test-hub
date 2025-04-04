@@ -1,0 +1,36 @@
+---
+- name: Get configuration from Arista devices
+  hosts: "{{ target | default('all') }}"
+  gather_facts: false
+  
+  vars:
+    config_type: "running"  # Can be 'running' or 'startup'
+    save_output: true
+    output_dir: "./configs"
+    ssh_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+    
+  tasks:
+    - name: Ensure output directory exists
+      ansible.builtin.file:
+        path: "{{ output_dir }}"
+        state: directory
+        mode: '0755'
+      delegate_to: localhost
+      when: save_output | bool
+      
+    - name: Get device configuration
+      arista.eos.eos_config:
+        backup: yes
+        backup_options:
+          dir_path: "{{ output_dir }}"
+          filename: "{{ inventory_hostname }}_{{ config_type }}_{{ ansible_date_time.iso8601_basic_short }}.cfg"
+      vars:
+        ansible_connection: network_cli
+        ansible_network_os: arista.eos.eos
+        ansible_ssh_common_args: "{{ ssh_args }}"
+        
+    - name: Display backup location
+      ansible.builtin.debug:
+        msg: "Configuration saved to {{ output_dir }}/{{ inventory_hostname }}_{{ config_type }}_{{ ansible_date_time.iso8601_basic_short }}.cfg"
+      when: save_output | bool
+...
